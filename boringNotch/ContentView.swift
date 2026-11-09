@@ -100,7 +100,7 @@ struct ContentView: View {
                         : cornerRadiusInsets.closed.bottom
                     )
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
-                    .background(.black)
+                    .background(ParobitaNotchBackground(isOpen: vm.notchState == .open, shape: currentNotchShape))
                     .clipShape(currentNotchShape)
                     .overlay(alignment: .top) {
                         Rectangle()

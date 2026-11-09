@@ -1622,6 +1622,7 @@ struct Advanced: View {
                 Defaults.Toggle(key: .showOnLockScreen) {
                     Text("Show notch on lock screen")
                 }
+                ParobitaSettingsRows()
                 Defaults.Toggle(key: .hideFromScreenRecording) {
                     Text("Hide from screen recording")
                 }

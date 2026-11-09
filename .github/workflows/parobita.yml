@@ -1,0 +1,36 @@
+name: Parobita build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          xcodebuild -version
+      - name: Resolve packages
+        run: xcodebuild -resolvePackageDependencies -project boringNotch.xcodeproj
+      - name: Build (ad-hoc signed)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project boringNotch.xcodeproj -scheme boringNotch -configuration Release \
+            -destination "generic/platform=macOS" -derivedDataPath build \
+            CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" ONLY_ACTIVE_ARCH=NO 2>&1 | tail -200
+      - name: Package DMG
+        run: |
+          APP="$(find build/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)"
+          echo "App: $APP"
+          mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "Boring Notch" -srcfolder dmg -fs HFS+ -format UDZO -quiet Boring-Notch.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Boring-Notch-dmg
+          path: Boring-Notch.dmg
