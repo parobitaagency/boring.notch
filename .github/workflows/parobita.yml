@@ -23,7 +23,23 @@ jobs:
             -project boringNotch.xcodeproj -scheme boringNotch -configuration Release \
             -destination "generic/platform=macOS" -derivedDataPath build \
             CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE_SPECIFIER="" ONLY_ACTIVE_ARCH=NO 2>&1 | tail -200
+            PROVISIONING_PROFILE_SPECIFIER="" ONLY_ACTIVE_ARCH=NO ENABLE_HARDENED_RUNTIME=NO 2>&1 | tail -200
+      - name: Re-sign everything with one ad-hoc identity
+        run: |
+          set -euo pipefail
+          APP="$(find build/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)"
+          # Prebuilt frameworks carry the upstream team's signature; dyld
+          # refuses to load them into an ad-hoc app. Sign inside-out.
+          find "$APP/Contents/Frameworks" -mindepth 1 -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) -print0 |
+            xargs -0 -I{} codesign --force --deep --sign - {}
+          if [ -d "$APP/Contents/XPCServices" ]; then
+            for x in "$APP"/Contents/XPCServices/*.xpc; do
+              codesign --force --sign - --preserve-metadata=entitlements,identifier "$x"
+            done
+          fi
+          codesign --force --sign - --preserve-metadata=entitlements,identifier "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -d --entitlements - "$APP" | head -40
       - name: Package DMG
         run: |
           APP="$(find build/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)"
